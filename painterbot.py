@@ -5,16 +5,13 @@ import urllib2
 import numpy as np
 from slackclient import SlackClient
 
-# starterbot's ID as an environment variable
-BOT_ID = os.environ.get("BOT_ID")
-
 # constants
+BOT_ID = os.environ.get("BOT_ID")
 AT_BOT = "<@" + BOT_ID + ">"
 EXAMPLE_COMMAND = "do"
 
-# instantiate Slack & Twilio clients
+# instantiate Slack client
 slack_client = SlackClient(os.environ.get('SLACK_BOT_TOKEN'))
-
 
 
 def handle_command(command, channel):
@@ -72,7 +69,7 @@ def parse_slack_output(slack_rtm_output):
     return None, None
 
 if __name__ == "__main__":
-    READ_WEBSOCKET_DELAY = 1 # 1 second delay between reading from firehose
+    READ_WEBSOCKET_DELAY = 0.25 # quarter-second delay between reading from firehose
     if slack_client.rtm_connect():
         print("StarterBot connected and running!")
         while True:

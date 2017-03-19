@@ -11,6 +11,7 @@ Uses neural networks for [style transfer](https://github.com/yusuketomoto/chaine
 * Ubuntu 14.04 or 16.04
 * [Caffe](https://github.com/BVLC/caffe) built with GPU support and CUDNN acceleration
 * `python-pip`:
+
         pip install chainer slackclient numpy 
 
 ## Getting Started
@@ -25,3 +26,4 @@ Uses neural networks for [style transfer](https://github.com/yusuketomoto/chaine
 
         python tools/print_bot_id.py
         export BOT_ID='XXXXXXXXX'
+
