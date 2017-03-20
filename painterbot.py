@@ -2,8 +2,11 @@ import os
 import cv2
 import time
 import urllib2
+import scipy.misc
 import numpy as np
+from slacker import Slacker
 from slackclient import SlackClient
+from neuralstyle import generate
 
 # constants
 BOT_ID = os.environ.get("BOT_ID")
@@ -12,7 +15,7 @@ EXAMPLE_COMMAND = "do"
 
 # instantiate Slack client
 slack_client = SlackClient(os.environ.get('SLACK_BOT_TOKEN'))
-
+slack = Slacker(os.environ.get('SLACK_BOT_TOKEN'))
 
 def handle_command(command, channel):
     """
@@ -30,27 +33,37 @@ def handle_command(command, channel):
                     imgURL = file[keyf]
 
     if imgURL != "":
-        try:
-            req = urllib2.urlopen(
-                urllib2.Request(imgURL, headers={'Authorization': 'Bearer %s' % os.environ.get('SLACK_BOT_TOKEN')})
-            )
-            arr = np.asarray(bytearray(req.read()), dtype=np.uint8)
-            img = cv2.imdecode(arr,-1) # 'load it as it is'
-        except:
-            print('Error parsing image, send a Slack message')
-            pass
+        # try:
+        req = urllib2.urlopen(
+            urllib2.Request(imgURL, headers={'Authorization': 'Bearer %s' % os.environ.get('SLACK_BOT_TOKEN')})
+        )
+        arr = np.asarray(bytearray(req.read()), dtype=np.uint8)
+        img = cv2.imdecode(arr,-1) # 'load it as it is'
+        stylized = stylize(img)
+
+        scipy.misc.imsave('stylized.png', stylized)
+
+        slack_client.api_call('files.upload', channels=channel, filename='painting.png', file=open('stylized.png', 'rb'), initial_comment='Enjoy your painting!')
+
+        # slack_client.api_call("chat.postMessage", channel=channel,
+        #                   text='Enjoy your painting!', as_user=True)
+
+        # except:
+        #     print('Error parsing image, send a Slack message')
+        #     pass
     else:
         # Non-image bot mention, handle with a message or something
         pass
 
 
-    response = "Not sure what you mean. Use the *" + EXAMPLE_COMMAND + \
-               "* command with numbers, delimited by spaces."
-    # if command.startswith(EXAMPLE_COMMAND):
-    #     response = "Sure...write some more code then I can do that!"
-    slack_client.api_call("chat.postMessage", channel=channel,
-                          text=response, as_user=True)
+    
 
+def stylize(img):
+    stylized = generate.stylize(img)
+    # cv2.imshow("img", stylized)
+    # cv2.waitKey(0)
+
+    return stylized
 
 def parse_slack_output(slack_rtm_output):
     """

@@ -1,4 +1,4 @@
-# Painter Bot
+# Slack Painter Bot
 
 A chat bot for Slack that 'paints' pictures. 
 
