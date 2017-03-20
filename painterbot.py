@@ -17,6 +17,10 @@ EXAMPLE_COMMAND = "do"
 slack_client = SlackClient(os.environ.get('SLACK_BOT_TOKEN'))
 slack = Slacker(os.environ.get('SLACK_BOT_TOKEN'))
 
+abspath = os.path.abspath(__file__)
+dname = os.path.dirname(abspath)
+os.chdir(dname)
+
 def handle_command(command, channel):
     """
         Receives commands directed at the bot and determines if they
@@ -33,30 +37,51 @@ def handle_command(command, channel):
                     imgURL = file[keyf]
 
     if imgURL != "":
-        # try:
-        req = urllib2.urlopen(
-            urllib2.Request(imgURL, headers={'Authorization': 'Bearer %s' % os.environ.get('SLACK_BOT_TOKEN')})
-        )
-        arr = np.asarray(bytearray(req.read()), dtype=np.uint8)
-        img = cv2.imdecode(arr,-1) # 'load it as it is'
-        stylized = stylize(img)
+        try:
+            slack_client.api_call("chat.postMessage", channel=channel,
+                  text='Working on your painting...', as_user=True)
+            req = urllib2.urlopen(
+                urllib2.Request(imgURL, headers={'Authorization': 'Bearer %s' % os.environ.get('SLACK_BOT_TOKEN')})
+            )
+            arr = np.asarray(bytearray(req.read()), dtype=np.uint8)
+            img = cv2.imdecode(arr,-1) # 'load it as it is'
+            img = cv2.resize(img, dimensionsKeepAspect(512, 512, img.shape[1], img.shape[0]), interpolation = cv2.INTER_AREA)
+            
+            stylized = stylize(img)
 
-        scipy.misc.imsave('stylized.png', stylized)
+            scipy.misc.imsave('stylized.png', stylized)
 
-        slack_client.api_call('files.upload', channels=channel, filename='painting.png', file=open('stylized.png', 'rb'), initial_comment='Enjoy your painting!')
-
-        # slack_client.api_call("chat.postMessage", channel=channel,
-        #                   text='Enjoy your painting!', as_user=True)
-
-        # except:
-        #     print('Error parsing image, send a Slack message')
-        #     pass
+            slack_client.api_call('files.upload', channels=channel, filename='painting.png', file=open('stylized.png', 'rb'), initial_comment='Enjoy your painting!')
+        except Exception as e:
+            print(e)
+            slack_client.api_call("chat.postMessage", channel=channel,
+                  text='I had trouble with that image. Sorry!', as_user=True)
+            pass
     else:
         # Non-image bot mention, handle with a message or something
         pass
 
 
-    
+def dimensionsKeepAspect(targetWidth, targetHeight, oldWidth, oldHeight):
+    """
+    Gives resizing dimensions to keep an image within (targetWidth, targetHeight)
+    while preserving the original aspect ratio. Does not upsize iamges smaller
+    than the target dimensions.
+    """
+    if (oldWidth < targetWidth) and (oldHeight < targetHeight):
+        return (int(oldWidth), int(oldHeight))
+    oldAspect = oldWidth/float(oldHeight)
+    newAspect = targetWidth/float(targetHeight)
+    if oldAspect > newAspect:
+        newWidth = targetWidth
+        newHeight = targetWidth/oldAspect
+        return (int(newWidth), int(newHeight))
+    elif oldAspect < newAspect:
+        newHeight = targetHeight
+        newWidth = targetHeight*oldAspect
+        return (int(newWidth), int(newHeight))
+    elif oldAspect == newAspect:
+        return (int(targetWidth), int(targetHeight))
 
 def stylize(img):
     stylized = generate.stylize(img)
