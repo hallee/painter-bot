@@ -5,7 +5,7 @@ import base64
 import urllib2
 import scipy.misc
 import numpy as np
-from neuralstyle import generate
+# from neuralstyle import generate
 from flask import Flask, request, jsonify
 
 app = Flask(__name__)
@@ -13,13 +13,13 @@ app = Flask(__name__)
 # @route('/hello')
 @app.route('/hello', methods=['POST'])
 def hello():
-    print(request)
-
     token = request.form.get('token', None)  # TODO: validate the token
     text = request.form.get('text', None)
+    user = request.form.get('user_id', None)
 
     print(token)
     print(text)
+    print(user)
     url = None
     regexMatch = re.search("(?P<url>https?://[^\s]+)", text)
     if regexMatch is not None:
@@ -40,11 +40,35 @@ def hello():
         img = cv2.resize(img, dimensionsKeepAspect(512, 512, img.shape[1], img.shape[0]), interpolation = cv2.INTER_AREA)
         # _, buffer = cv2.imencode('.jpg', img)
         # jpgResponse = base64.b64encode(buffer)
+
         return jsonify({
-            'response_type': 'ephemeral',
-            'text': ('Testing!'),
+            "response_type": "ephemeral",
+            "text": ('Here\'s your painting:'),
+            "attachments": [
+                {
+                    "text": " ",
+                    "fallback": "ERROR",
+                    "callback_id": "share_painting",
+                    "color": "#3AA3E3",
+                    "attachment_type": "default",
+                    "actions": [
+                        {
+                            "name": "send",
+                            "text": "Send",
+                            "type": "button",
+                            "value": "send"
+                        },
+                        {
+                            "name": "delete",
+                            "text": "Delete",
+                            "style": "danger",
+                            "type": "button",
+                            "value": "delete"
+                        }
+                    ]
+                }
+            ]
         })
-        return 'Got non-slack image'
 
     else:
         return 'Give me an image URL and I\'ll try to paint it!'
