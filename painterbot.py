@@ -37,6 +37,7 @@ def hello():
             return('I can\'t paint that. Try something else!')
 
         if 'slack.com' in url:
+            print('requesting Slack image:')
             req = urllib2.urlopen(
                 urllib2.Request(url, headers={'Authorization': 'Bearer %s' % os.environ.get('SLACK_APP_TOKEN')})
             )
@@ -103,14 +104,10 @@ def hello():
 def buttonreply():
     payload = request.form.get('payload', None)
     jsonPayload = json.loads(payload)
-    if 'token' in jsonPayload:
-        token = jsonPayload['token']  # TODO: validate the token
-    if 'user' in jsonPayload:
-        user = jsonPayload['user']['id']
-    if 'actions' in jsonPayload:
-        action = jsonPayload['actions'][0]['value']
-    if 'response_url' in jsonPayload:
-        respond = jsonPayload['response_url']
+    token = jsonPayload['token']  # TODO: validate the token
+    user = jsonPayload['user']['id']
+    action = jsonPayload['actions'][0]['value']
+    respond = jsonPayload['response_url']
 
     if action == 'delete':
         return jsonify({
@@ -182,6 +179,10 @@ def dimensionsKeepAspect(targetWidth, targetHeight, oldWidth, oldHeight):
 def stylize(img):
     stylized = generate.stylize(img)
     return stylized
+
+@app.errorhandler(500)
+def internal_error(error):
+    return "Application error. Try something else!"
 
 
 if __name__ == '__main__':
