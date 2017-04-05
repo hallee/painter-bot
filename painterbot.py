@@ -23,12 +23,8 @@ def hello():
     token = request.form.get('token', None)  # TODO: validate the token
     text = request.form.get('text', None)
     user = request.form.get('user_id', None)
-    channel = request.form.get('channel_id', None)
     respond = request.form.get('response_url', None)
 
-    print(channel)
-    print(text)
-    print(user)
     url = None
     regexMatch = re.search("(?P<url>https?://[^\s]+)", text)
     if regexMatch is not None:
@@ -47,8 +43,15 @@ def hello():
         else:
             req = urllib2.urlopen(url)
 
+
         arr = np.asarray(bytearray(req.read()), dtype=np.uint8)
-        img = cv2.imdecode(arr,-1) # 'load it as it is'
+        img = cv2.imdecode(arr, -1) # 'load it as it is'
+
+        if img is None:
+            return 'I had trouble parsing that image. Try another!'
+        if img.shape is None:
+            return 'I had trouble parsing that image. Try another!'
+
         img = cv2.resize(img, dimensionsKeepAspect(512, 512, img.shape[1], img.shape[0]), interpolation = cv2.INTER_AREA)
 
         headers = {'Content-Type' : 'application/json'}
@@ -56,7 +59,7 @@ def hello():
         r = requests.post(respond, data=json.dumps(initialReply), headers=headers)
 
         styled = img #stylize(img)
-        imageURL = uploadImage(styled, channel, user)
+        imageURL = uploadImage(styled, user)
         print(imageURL)
         userImages[user] = imageURL
 
@@ -100,12 +103,14 @@ def hello():
 def buttonreply():
     payload = request.form.get('payload', None)
     jsonPayload = json.loads(payload)
-    print(jsonPayload)
-    token = jsonPayload['token']  # TODO: validate the token
-    channel = jsonPayload['channel']['id']
-    user = jsonPayload['user']['id']
-    action = jsonPayload['actions'][0]['value']
-    respond = jsonPayload['response_url']
+    if 'token' in jsonPayload:
+        token = jsonPayload['token']  # TODO: validate the token
+    if 'user' in jsonPayload:
+        user = jsonPayload['user']['id']
+    if 'actions' in jsonPayload:
+        action = jsonPayload['actions'][0]['value']
+    if 'response_url' in jsonPayload:
+        respond = jsonPayload['response_url']
 
     if action == 'delete':
         return jsonify({
@@ -133,15 +138,21 @@ def buttonreply():
     return 'Final Reply'
 
 
-def uploadImage(img, channel, user):
+def uploadImage(img, user):
+    imageURL = ''
     _, buffer = cv2.imencode('.jpg', img)
     imageBinary = buffer.tostring()
+    # First, upload the image (will be private):
     response = slack_client.api_call('files.upload', filename='Painting.jpg', file=imageBinary)
-    print(response)
-    fileID = response['file']['id']
-    response = slack_client.api_call('files.sharedPublicURL', file=fileID)
-    print(response)
-    imageURL = response['file']['permalink_public']
+    if 'file' in response:
+        if 'id' in response['file']:
+            fileID = response['file']['id']
+            # Next, make the image public:
+            response = slack_client.api_call('files.sharedPublicURL', file=fileID)
+
+    if 'file' in response:
+        if 'permalink_public' in response['file']:
+            imageURL = response['file']['permalink_public']
     return imageURL
 
 
