@@ -13,7 +13,7 @@ from flask import Flask, request, jsonify
 
 
 app = Flask(__name__)
-slack_client = SlackClient(os.environ.get('SLACK_BOT_TOKEN'))
+slack_client = SlackClient(os.environ.get('SLACK_APP_TOKEN'))
 userImages = {}
 
 
@@ -23,8 +23,10 @@ def hello():
     token = request.form.get('token', None)  # TODO: validate the token
     text = request.form.get('text', None)
     user = request.form.get('user_id', None)
+    channel = request.form.get('channel_id', None)
+    respond = request.form.get('response_url', None)
 
-    print(token)
+    print(channel)
     print(text)
     print(user)
     url = None
@@ -40,7 +42,7 @@ def hello():
 
         if 'slack.com' in url:
             req = urllib2.urlopen(
-                urllib2.Request(url, headers={'Authorization': 'Bearer %s' % os.environ.get('SLACK_BOT_TOKEN')})
+                urllib2.Request(url, headers={'Authorization': 'Bearer %s' % os.environ.get('SLACK_APP_TOKEN')})
             )
         else:
             req = urllib2.urlopen(url)
@@ -49,16 +51,23 @@ def hello():
         img = cv2.imdecode(arr,-1) # 'load it as it is'
         img = cv2.resize(img, dimensionsKeepAspect(512, 512, img.shape[1], img.shape[0]), interpolation = cv2.INTER_AREA)
 
-        userImages[user] = img #stylize(img)
-        # _, buffer = cv2.imencode('.jpg', img)
-        # jpgResponse = base64.b64encode(buffer)
+        headers = {'Content-Type' : 'application/json'}
+        initialReply = {"response_type": "ephemeral", "text": "Working on that..."}
+        r = requests.post(respond, data=json.dumps(initialReply), headers=headers)
 
-        return jsonify({
+        styled = img #stylize(img)
+        imageURL = uploadImage(styled, channel, user)
+        print(imageURL)
+        userImages[user] = imageURL
+
+        paintingReply = {
             "response_type": "ephemeral",
-            "text": ('Here\'s your painting:'),
+            "delete_original": "Yes",
+            "text": "Here's your painting:",
             "attachments": [
                 {
-                    "text": " ",
+                    "title": " ",
+                    "image_url": imageURL,
                     "fallback": "ERROR",
                     "callback_id": "share_painting",
                     "color": "#3AA3E3",
@@ -80,8 +89,9 @@ def hello():
                     ]
                 }
             ]
-        })
-
+        }
+        r = requests.post(respond, data=json.dumps(paintingReply), headers=headers)
+        return ''
     else:
         return 'Give me an image URL and I\'ll try to paint it!'
 
@@ -90,10 +100,12 @@ def hello():
 def buttonreply():
     payload = request.form.get('payload', None)
     jsonPayload = json.loads(payload)
+    print(jsonPayload)
     token = jsonPayload['token']  # TODO: validate the token
     channel = jsonPayload['channel']['id']
     user = jsonPayload['user']['id']
     action = jsonPayload['actions'][0]['value']
+    respond = jsonPayload['response_url']
 
     if action == 'delete':
         return jsonify({
@@ -101,10 +113,21 @@ def buttonreply():
         })
 
     if user in userImages:
-        uploadImage(userImages[user], channel, user)
-        return jsonify({
+        imageURL = userImages[user]
+        headers = {'Content-Type' : 'application/json'}
+        initialReply = {
+            "response_type": "in_channel",
             "delete_original": "Yes",
-        })
+            "text": "I made a painting:",
+            "attachments": [
+                {
+                    "title": " ",
+                    "image_url": imageURL,
+                }
+            ]
+        }
+        r = requests.post(respond, data=json.dumps(initialReply), headers=headers)
+        return ''
     else:
         return 'I couldn\'t find your image. Try again!'
     return 'Final Reply'
@@ -112,9 +135,15 @@ def buttonreply():
 
 def uploadImage(img, channel, user):
     _, buffer = cv2.imencode('.jpg', img)
-    jpgResponse = base64.b64encode(buffer)
-    err = slack_client.api_call('files.upload', filename='painting.png', file=open('stylized.png', 'rb'), initial_comment=' ')
-    print(err)
+    imageBinary = buffer.tostring()
+    response = slack_client.api_call('files.upload', filename='Painting.jpg', file=imageBinary)
+    print(response)
+    fileID = response['file']['id']
+    response = slack_client.api_call('files.sharedPublicURL', file=fileID)
+    print(response)
+    imageURL = response['file']['permalink_public']
+    return imageURL
+
 
 
 def dimensionsKeepAspect(targetWidth, targetHeight, oldWidth, oldHeight):
