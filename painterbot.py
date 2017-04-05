@@ -2,10 +2,8 @@ import os
 import re
 import cv2
 import json
-import base64
 import urllib2
 import requests
-import scipy.misc
 import numpy as np
 # from neuralstyle import generate
 from slackclient import SlackClient
