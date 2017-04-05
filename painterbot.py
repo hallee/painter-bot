@@ -37,19 +37,19 @@ def hello():
             return('I can\'t paint that. Try something else!')
 
         if 'slack.com' in url:
+            privateURL = urllib2.Request(url, headers={'Authorization': 'Bearer %s' % os.environ.get('SLACK_APP_TOKEN')})
             print('requesting Slack image:')
-            req = urllib2.urlopen(
-                urllib2.Request(url, headers={'Authorization': 'Bearer %s' % os.environ.get('SLACK_APP_TOKEN')})
-            )
+            req = urllib2.urlopen(privateURL)
+            # print(req.read().decode("utf8", 'ignore'))
         else:
             req = urllib2.urlopen(url)
 
 
-        arr = np.asarray(bytearray(req.read()), dtype=np.uint8)
+        arr = np.asarray(bytearray(req.read()))
         img = cv2.imdecode(arr, -1) # 'load it as it is'
 
         if img is None:
-            return 'I had trouble parsing that image. Try another!'
+            return 'I had trouble parsing that. Try another!'
         if img.shape is None:
             return 'I had trouble parsing that image. Try another!'
 
