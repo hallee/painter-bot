@@ -5,7 +5,7 @@ import json
 import urllib2
 import requests
 import numpy as np
-# from neuralstyle import generate
+from neuralstyle import generate
 from slackclient import SlackClient
 from flask import Flask, request, jsonify
 
@@ -51,13 +51,15 @@ def hello():
         if img.shape is None:
             return 'I had trouble parsing that image. Try another!'
 
-        img = cv2.resize(img, dimensionsKeepAspect(512, 512, img.shape[1], img.shape[0]), interpolation = cv2.INTER_AREA)
+        img = cv2.resize(img, dimensionsKeepAspect(1200, 1200, img.shape[1], img.shape[0]), interpolation = cv2.INTER_AREA)
 
         headers = {'Content-Type' : 'application/json'}
         initialReply = {"response_type": "ephemeral", "text": "Working on that..."}
         r = requests.post(respond, data=json.dumps(initialReply), headers=headers)
 
-        styled = img #stylize(img)
+        styled = stylize(img)
+        styled = cv2.cvtColor(styled, cv2.COLOR_BGR2RGB)
+
         imageURL = uploadImage(styled, user)
         print(imageURL)
         userImages[user] = imageURL
