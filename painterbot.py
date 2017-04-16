@@ -127,7 +127,7 @@ def processImage(arr, respond, user, headers):
         r = requests.post(respond, data=json.dumps(response), headers=headers)
         return
 
-    img = cv2.resize(img, dimensionsKeepAspect(1024, 1200, img.shape[1], img.shape[0]), interpolation = cv2.INTER_AREA)
+    img = cv2.resize(img, dimensionsKeepAspect(1200, 1200, img.shape[1], img.shape[0]), interpolation = cv2.INTER_AREA)
 
     styled = stylize(img)
     styled = cv2.cvtColor(styled, cv2.COLOR_BGR2RGB)
