@@ -6,6 +6,7 @@ import urllib2
 import requests
 import numpy as np
 from neuralstyle import generate
+from multiprocessing import Process
 from slackclient import SlackClient
 from flask import Flask, request, jsonify
 
@@ -42,60 +43,18 @@ def hello():
         else:
             req = urllib2.urlopen(url)
 
-
         arr = np.asarray(bytearray(req.read()))
-        img = cv2.imdecode(arr, -1) # 'load it as it is'
+        
+        headers = { 'Content-Type' : 'application/json' }
 
-        if img is None:
-            return 'I had trouble parsing that. Try another!'
-        if img.shape is None:
-            return 'I had trouble parsing that image. Try another!'
+        # Process image
+        p = Process(target=processImage, args=(arr, respond, user, headers,))
+        # processImage(img, respond, user, headers)
+        p.start()
+        p.join()
 
-        img = cv2.resize(img, dimensionsKeepAspect(1200, 1200, img.shape[1], img.shape[0]), interpolation = cv2.INTER_AREA)
+        return 'Working on that...', 200
 
-        headers = {'Content-Type' : 'application/json'}
-        initialReply = {"response_type": "ephemeral", "text": "Working on that..."}
-        r = requests.post(respond, data=json.dumps(initialReply), headers=headers)
-
-        styled = stylize(img)
-        styled = cv2.cvtColor(styled, cv2.COLOR_BGR2RGB)
-
-        imageURL = uploadImage(styled, user)
-        print(imageURL)
-        userImages[user] = imageURL
-
-        paintingReply = {
-            "response_type": "ephemeral",
-            "delete_original": "Yes",
-            "text": "Here's your painting:",
-            "attachments": [
-                {
-                    "title": " ",
-                    "image_url": imageURL,
-                    "fallback": "ERROR",
-                    "callback_id": "share_painting",
-                    "color": "#3AA3E3",
-                    "attachment_type": "default",
-                    "actions": [
-                        {
-                            "name": "send",
-                            "text": "Send",
-                            "type": "button",
-                            "value": "send"
-                        },
-                        {
-                            "name": "delete",
-                            "text": "Delete",
-                            "style": "danger",
-                            "type": "button",
-                            "value": "delete"
-                        }
-                    ]
-                }
-            ]
-        }
-        r = requests.post(respond, data=json.dumps(paintingReply), headers=headers)
-        return ''
     else:
         return 'Give me an image URL and I\'ll try to paint it!'
 
@@ -153,6 +112,64 @@ def uploadImage(img, user):
     return imageURL
 
 
+def processImage(arr, respond, user, headers):
+    import cv2
+    
+    img = cv2.imdecode(arr, -1) # 'load it as it is'
+
+    if img is None:
+        response = 'I had trouble parsing that. Try another!'
+        r = requests.post(respond, data=json.dumps(response), headers=headers)
+        return
+    if img.shape is None:
+        response = 'I had trouble parsing that image. Try another!'
+        r = requests.post(respond, data=json.dumps(response), headers=headers)
+        return
+
+    img = cv2.resize(img, dimensionsKeepAspect(1200, 1200, img.shape[1], img.shape[0]), interpolation = cv2.INTER_AREA)
+
+    styled = img #stylize(img)
+    time.sleep(10)
+    styled = cv2.cvtColor(styled, cv2.COLOR_BGR2RGB)
+
+    imageURL = uploadImage(styled, user)
+    print(imageURL)
+    userImages[user] = imageURL
+
+    paintingReply = {
+        "response_type": "ephemeral",
+        "delete_original": "Yes",
+        "text": "Here's your painting:",
+        "attachments": [
+            {
+                "title": " ",
+                "image_url": imageURL,
+                "fallback": "ERROR",
+                "callback_id": "share_painting",
+                "color": "#3AA3E3",
+                "attachment_type": "default",
+                "actions": [
+                    {
+                        "name": "send",
+                        "text": "Send",
+                        "type": "button",
+                        "value": "send"
+                    },
+                    {
+                        "name": "delete",
+                        "text": "Delete",
+                        "style": "danger",
+                        "type": "button",
+                        "value": "delete"
+                    }
+                ]
+            }
+        ]
+    }
+
+    r = requests.post(respond, data=json.dumps(paintingReply), headers=headers)
+    return
+
 
 def dimensionsKeepAspect(targetWidth, targetHeight, oldWidth, oldHeight):
     """
@@ -179,6 +196,7 @@ def dimensionsKeepAspect(targetWidth, targetHeight, oldWidth, oldHeight):
 def stylize(img):
     stylized = generate.stylize(img)
     return stylized
+
 
 @app.errorhandler(500)
 def internal_error(error):
