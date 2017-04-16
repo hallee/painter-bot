@@ -5,8 +5,8 @@ import json
 import urllib2
 import requests
 import numpy as np
+from threading import Thread
 from neuralstyle import generate
-from multiprocessing import Process
 from slackclient import SlackClient
 from flask import Flask, request, jsonify
 
@@ -48,11 +48,9 @@ def hello():
         headers = { 'Content-Type' : 'application/json' }
 
         # Process image
-        p = Process(target=processImage, args=(arr, respond, user, headers,))
-        p.daemon = True
-        p.start()
-
-
+        t = Thread(target=processImage, args=(arr, respond, user, headers,))
+        t.daemon = True
+        t.start()
 
         return 'Working on that...', 200
 
@@ -114,8 +112,9 @@ def uploadImage(img, user):
 
 
 def processImage(arr, respond, user, headers):
-    import cv2
+    global userImages
     
+    import cv2
     img = cv2.imdecode(arr, -1) # 'load it as it is'
 
     if img is None:
