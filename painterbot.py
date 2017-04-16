@@ -128,8 +128,7 @@ def processImage(arr, respond, user, headers):
 
     img = cv2.resize(img, dimensionsKeepAspect(1200, 1200, img.shape[1], img.shape[0]), interpolation = cv2.INTER_AREA)
 
-    styled = img #stylize(img)
-    time.sleep(10)
+    styled = stylize(img)
     styled = cv2.cvtColor(styled, cv2.COLOR_BGR2RGB)
 
     imageURL = uploadImage(styled, user)
